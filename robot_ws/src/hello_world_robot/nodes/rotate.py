@@ -1,50 +1,54 @@
 #!/usr/bin/env python
-
-# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of this
-# software and associated documentation files (the "Software"), to deal in the Software
-# without restriction, including without limitation the rights to use, copy, modify,
-# merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
-# permit persons to whom the Software is furnished to do so.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
-# PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-# HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-# OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
+import rospy
 from geometry_msgs.msg import Twist
 
-import rospy
+def move():
+    # Starts a new node
+    rospy.init_node('rotate', anonymous=True)
+    velocity_publisher = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+    vel_msg = Twist()
 
+    #Receiveing the user's input
+    print("Let's move your robot")
+    speed = input("Input your speed:")
+    distance = input("Type your distance:")
+    isForward = input("Foward?: ")#True or False
 
-class Rotator():
+    #Checking if the movement is forward or backwards
+    if(isForward):
+        vel_msg.linear.x = abs(speed)
+    else:
+        vel_msg.linear.x = -abs(speed)
+    #Since we are moving just in x-axis
+    vel_msg.linear.y = 0
+    vel_msg.linear.z = 0
+    vel_msg.angular.x = 0
+    vel_msg.angular.y = 0
+    vel_msg.angular.z = 0
 
-    def __init__(self):
-        self._cmd_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+    while not rospy.is_shutdown():
 
-    def rotate_forever(self):
-        self.twist = Twist()
+        #Setting the current time for distance calculus
+        t0 = rospy.Time.now().to_sec()
+        current_distance = 0
 
-        r = rospy.Rate(10)
-        while not rospy.is_shutdown():
-            self.twist.angular.z = 0.1
-            self._cmd_pub.publish(self.twist)
-            rospy.loginfo('Rotating robot: %s', self.twist)
-            r.sleep()
-
-
-def main():
-    rospy.init_node('rotate')
-    try:
-        rotator = Rotator()
-        rotator.rotate_forever()
-    except rospy.ROSInterruptException:
-        pass
-
+        #Loop to move the turtle in an specified distance
+        while(current_distance < distance):
+            #Publish the velocity
+            velocity_publisher.publish(vel_msg)
+            #Takes actual time to velocity calculus
+            t1=rospy.Time.now().to_sec()
+            #Calculates distancePoseStamped
+            current_distance= speed*(t1-t0)
+        #After the loop, stops the robot
+        
+        vel_msg.linear.x = -vel_msg.linear.x
+        print(vel_msg.linear.x)
+        #Force the robot to stop
+        velocity_publisher.publish(vel_msg)
 
 if __name__ == '__main__':
-    main()
+    try:
+        #Testing our function
+        move()
+    except rospy.ROSInterruptException: pass
